@@ -7,11 +7,12 @@ import android.net.NetworkInfo;
 import android.preference.PreferenceManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
-import android.util.Log;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
-import java.util.Locale;
 import java.util.Date;
+import java.util.Locale;
 
 /**
  * Created by Monet on 2015/3/16.
@@ -35,7 +36,7 @@ public class Utility {
         NetworkInfo networkInfo;
         String type = NETWORK_TYPE_DISCONNECT;
         if (manager == null || (networkInfo = manager.getActiveNetworkInfo()) == null) {
-            Log.v("test", type);
+            //Log.v("test", type);
             return type;
         };
 
@@ -51,7 +52,7 @@ public class Utility {
                 type = NETWORK_TYPE_UNKNOWN;
             }
         }
-        Log.v("test", type);
+        //Log.v("test", type);
         return type;
     }
 
@@ -126,5 +127,28 @@ public class Utility {
         editor.putString("network_type_name", networkTypeName);
         editor.putString("current_time", sdf.format(new Date()));
         editor.commit();
+    }
+
+    public static void setMobileDataEnabled(Context context, boolean enabled) {
+        try {
+            final ConnectivityManager conman = (ConnectivityManager) context
+                    .getSystemService(Context.CONNECTIVITY_SERVICE);
+            final Class conmanClass = Class
+                    .forName(conman.getClass().getName());
+            final Field iConnectivityManagerField = conmanClass
+                    .getDeclaredField("mService");
+            iConnectivityManagerField.setAccessible(true);
+            final Object iConnectivityManager = iConnectivityManagerField
+                    .get(conman);
+            final Class iConnectivityManagerClass = Class
+                    .forName(iConnectivityManager.getClass().getName());
+            final Method setMobileDataEnabledMethod = iConnectivityManagerClass
+                    .getDeclaredMethod("setMobileDataEnabled", Boolean.TYPE);
+            setMobileDataEnabledMethod.setAccessible(true);
+
+            setMobileDataEnabledMethod.invoke(iConnectivityManager, enabled);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }
