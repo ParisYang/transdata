@@ -9,7 +9,6 @@ import android.content.SharedPreferences;
 import android.graphics.Color;
 import android.os.Bundle;
 import android.preference.PreferenceManager;
-import android.util.Log;
 import android.view.View;
 import android.view.Window;
 import android.widget.Button;
@@ -17,10 +16,11 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.monet.transdata.R;
-import com.monet.transdata.service.AutoAdaptService;
 import com.monet.transdata.service.AutoDetectiveService;
+import com.monet.transdata.service.StableTcpService;
+import com.monet.transdata.service.SwitchNetworkService;
 import com.monet.transdata.util.Utility;
-import com.monet.transdata.util.WifiAdmin;
+import com.monet.transdata.util.WifiUtil;
 
 
 public class MainActivity extends Activity implements View.OnClickListener{
@@ -79,31 +79,42 @@ public class MainActivity extends Activity implements View.OnClickListener{
         startHere.setOnClickListener(this);
         switchWifiButton.setOnClickListener(this);
         switchMobileDataButton.setOnClickListener(this);
+        //注册广播接收器，因依赖activity，故不能在Manifest里注册
+        uiUpdateReceiver = new UiUpdateReceiver();
+        IntentFilter filter = new IntentFilter();
+        filter.addAction("UI_UPDATE_ACTION");
+        registerReceiver(uiUpdateReceiver, filter);
+
+        IntentFilter intentFilter = new IntentFilter();
+        intentFilter.addAction("android.net.conn.CONNECTIVITY_CHANGE");
+        networkChangeReceiver = new NetworkChangeReceiver();
+        registerReceiver(networkChangeReceiver, intentFilter);
+
         //激活AutoDetectiveSevice服务
         Intent intent = new Intent(this, AutoDetectiveService.class);
         startService(intent);
+        //激活SwitchNetworkService服务
+        Intent i = new Intent(this, SwitchNetworkService.class);
+        startService(i);
         //showRequest();
         showNetwork();
+
     }
 
     @Override
     public void onClick(View v) {
         switch (v.getId()) {
             case R.id.start_here:
-                new Thread(new Runnable() {
+                runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         try {
-                            WifiAdmin wifiAdmin = new WifiAdmin(MainActivity.this);
-                            wifiAdmin.openWifi();
-                            Log.i("test",Integer.toString(wifiAdmin.checkState()));
-                            Log.i("test", wifiAdmin.lookUpScan());
-                            Log.i("test", wifiAdmin.lookUpConfig());
+                            revMessageText.setText("啥也木有- -。");
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
                     }
-                }).start();
+                });
                 break;
             case R.id.switch_wifi:
                 runOnUiThread(new Runnable() {
@@ -128,43 +139,27 @@ public class MainActivity extends Activity implements View.OnClickListener{
         }
     }
 
-    @Override
-    protected void onStart() {
-        super.onStart();
-        //注册广播接收器，因依赖activity，故不能在Manifest里注册
-        uiUpdateReceiver = new UiUpdateReceiver();
-        IntentFilter filter = new IntentFilter();
-        filter.addAction("UI_UPDATE_ACTION");
-        registerReceiver(uiUpdateReceiver, filter);
-
-        IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction("android.net.conn.CONNECTIVITY_CHANGE");
-        networkChangeReceiver = new NetworkChangeReceiver();
-        registerReceiver(networkChangeReceiver, intentFilter);
-    }
-
     private void showRequest() {
         //激活AutoAdaptservice服务
-        Intent intent = new Intent(this, AutoAdaptService.class);
+        Intent intent = new Intent(this, StableTcpService.class);
         startService(intent);
     }
 
     private void showNetwork(){
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(this);
-        networkTypeNameText.setText(prefs.getString("network_type_name","kong"));
-        currentTimeText.setText(prefs.getString("current_time","kong"));
-
+        networkTypeNameText.setText(prefs.getString("network_type_name",""));
+        currentTimeText.setText(prefs.getString("current_time","Loading..."));
     }
 
     private void switchTo(String switchType,String wifiColor,String egColor) {
         switchWifiButton.setBackgroundColor(Color.parseColor(wifiColor));
         switchMobileDataButton.setBackgroundColor(Color.parseColor(egColor));
-        WifiAdmin wifiAdmin = new WifiAdmin(MainActivity.this);
+        WifiUtil wifiUtil = new WifiUtil(MainActivity.this);
         if ("wifi".equals(switchType)) {
-            wifiAdmin.openWifi();
+            wifiUtil.openWifi();
             Utility.setMobileDataEnabled(MainActivity.this, false);
         }else if ("3g".equals(switchType)) {
-            wifiAdmin.closeWifi();
+            wifiUtil.closeWifi();
             Utility.setMobileDataEnabled(MainActivity.this, true);
         }
     }
@@ -190,5 +185,7 @@ public class MainActivity extends Activity implements View.OnClickListener{
         unregisterReceiver(networkChangeReceiver);
         Intent intent = new Intent(this, AutoDetectiveService.class);
         stopService(intent);
+        Intent i = new Intent(this, SwitchNetworkService.class);
+        stopService(i);
     }
 }

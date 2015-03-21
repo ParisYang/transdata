@@ -8,6 +8,7 @@ import android.preference.PreferenceManager;
 import android.telephony.TelephonyManager;
 import android.text.TextUtils;
 
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.text.SimpleDateFormat;
@@ -24,6 +25,8 @@ public class Utility {
     public static final String NETWORK_TYPE_WAP        = "wap";
     public static final String NETWORK_TYPE_UNKNOWN    = "unknown";
     public static final String NETWORK_TYPE_DISCONNECT = "disconnect";
+    public static final String NETWORK_TYPE_WIFIBUTFAIL = "wifibutfail";
+    public static final String NETWORK_TYPE_EGBUTFAIL = "egbutfail";
 
     /**
      * Get network type name
@@ -33,18 +36,22 @@ public class Utility {
      */
     public static String getNetworkTypeName(Context context) {
         ConnectivityManager manager = (ConnectivityManager)context.getSystemService(Context.CONNECTIVITY_SERVICE);
-        NetworkInfo networkInfo;
+        NetworkInfo networkInfo = manager.getActiveNetworkInfo();
         String type = NETWORK_TYPE_DISCONNECT;
-        if (manager == null || (networkInfo = manager.getActiveNetworkInfo()) == null) {
+        if (manager == null || networkInfo == null || !networkInfo.isAvailable() || !networkInfo.isConnected()) {
             //Log.v("test", type);
             return type;
-        };
-
-        if (networkInfo.isConnected()) {
+        }else {
             String typeName = networkInfo.getTypeName();
-            if ("WIFI".equalsIgnoreCase(typeName)) {
+            if(!checkConnectWithPing()) {
+                if ("WIFI".equalsIgnoreCase(typeName)) {
+                    return NETWORK_TYPE_WIFIBUTFAIL;
+                }else {
+                    return NETWORK_TYPE_EGBUTFAIL;
+                }
+            }else if ("WIFI".equalsIgnoreCase(typeName)) {
                 type = NETWORK_TYPE_WIFI;
-            } else if ("MOBILE".equalsIgnoreCase(typeName)) {
+            }else if ("MOBILE".equalsIgnoreCase(typeName)) {
                 String proxyHost = android.net.Proxy.getDefaultHost();
                 type = TextUtils.isEmpty(proxyHost) ? (isFastMobileNetwork(context) ? NETWORK_TYPE_3G : NETWORK_TYPE_2G)
                         : NETWORK_TYPE_WAP;
@@ -54,6 +61,32 @@ public class Utility {
         }
         //Log.v("test", type);
         return type;
+    }
+
+    /**
+     * Check if it can really connect to Internet
+     * for example, some WiFis also need to be log in the web
+     */
+    private static boolean checkConnectWithPing() {
+        try {
+            String ip = "www.baidu.com";
+            Process p = Runtime.getRuntime().exec("ping -c 1 -w 5 " + ip);// ping网址1次 超时为10秒
+            // ping的状态
+            int status = p.waitFor();
+            if (status != 0) {
+                return false;
+            }else {
+                return true;
+            }
+        } catch (IOException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            return false;
+        } catch (InterruptedException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+            return false;
+        }
     }
 
     /**

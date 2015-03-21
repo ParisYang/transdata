@@ -7,7 +7,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_weight="4"
+        android:layout_weight="5"
         android:background="#003366">
         <TextView
             android:id="@+id/network_type_name"
@@ -15,7 +15,7 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:layout_weight="1"
-            android:textSize="40sp"
+            android:textSize="35sp"
             android:textColor="#CCCC33"/>
         <TextView
             android:id="@+id/current_time"
@@ -51,7 +51,7 @@
             android:layout_gravity="bottom"
             android:textSize="40sp"
             android:text="~"
-            android:layout_marginTop="37dp"
+            android:layout_marginTop="30dp"
             android:layout_below="@+id/start_here"
             android:layout_centerHorizontal="true" />
     </RelativeLayout>
